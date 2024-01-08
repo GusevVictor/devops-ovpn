@@ -1,3 +1,6 @@
+# Exclude all vim swap files
+*.swp
+
 # Local .terraform directories
 **/.terraform/*
 
