@@ -1,0 +1,15 @@
+monitor.techenergoanalit.ru
+
+[vpnservers]
+ovpn-srv.techenergoanalit.ru
+ovpn-pki.techenergoanalit.ru
+ovpn-maintaince.techenergoanalit.ru
+
+[ssh_jump]
+ovpn-srv.techenergoanalit.ru
+ovpn-pki.techenergoanalit.ru
+ovpn-maintaince.techenergoanalit.ru
+monitor.techenergoanalit.ru
+
+[ssh_jump:vars]
+ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q vgusev2007_gmail_com@vpn.techenergoanalit.ru"'

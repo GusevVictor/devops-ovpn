@@ -183,3 +183,16 @@ resource "yandex_storage_bucket" "bucket1" {
     enabled = true
   }
 }
+
+// Run local ansible
+resource "null_resource" "ansible_provisioner" {
+  triggers = {
+    always_run = "${timestamp()}"
+  }
+  provisioner "local-exec" {
+    command = "ansible-playbook -e 'vpn_setup=true' playbook.yml"
+    working_dir = "${path.module}/ansible"
+# Assuming your Ansible playbook is in a folder called 'ansible' 
+# within your Terraform module.
+  }
+}

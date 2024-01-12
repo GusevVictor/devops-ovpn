@@ -1,0 +1,13 @@
+---
+# tasks file for vpn_service
+- name: Configuration hosts
+  ansible.builtin.include_tasks: file=vpn_service_setup.yml
+  when: "vpn_setup is defined and vpn_setup|bool == true"
+  tags:
+    - always 
+
+- name: Gen a user cert
+  ansible.builtin.include_tasks: file=vpn_service_gen_clt_cert.yml
+  when: client_name is defined
+  tags:
+    - always 

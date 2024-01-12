@@ -1,0 +1,8 @@
+---
+# tasks file for vpn_service
+- name: Configure vpn_service
+  hosts: vpnservers
+  gather_facts: no
+  roles:
+    - vpn_service
+

@@ -1,0 +1,12 @@
+---
+# handlers file for vpn_service
+- name: netfilter-persistent-save
+  ansible.builtin.command: service netfilter-persistent save
+  listen: netfilter-persistent-save
+
+- name: openvpn-restart
+  service:
+   name: openvpn@server
+   state: restarted
+  listen: openvpn-restart
+

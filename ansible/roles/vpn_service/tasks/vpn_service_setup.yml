@@ -1,0 +1,213 @@
+---
+- name: Install iptables-persistent and openvpn software
+  ansible.builtin.apt: name={{ package_list }}
+  vars:
+    package_list: ['iptables-persistent', 'openvpn']
+  when: inventory_hostname == "ovpn-srv.techenergoanalit.ru"
+
+- name: Install openssl and acl pkgs
+  ansible.builtin.apt: name={{ package_list }}
+  vars:
+    package_list: ['openssl=3.0.2-0ubuntu1.12', 'acl']
+  when: inventory_hostname in groups["vpnservers"]
+
+- name: Install easy-rsa
+  ansible.builtin.apt: deb="https://launchpad.net/ubuntu/+archive/primary/+files/easy-rsa_3.1.7-1_all.deb"
+  when: inventory_hostname in groups["vpnservers"]
+
+- name: Set ip forwarding on in /proc and in the sysctl file and reload if necessary
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    sysctl_set: true
+    state: present
+    reload: true
+  when: inventory_hostname == "ovpn-srv.techenergoanalit.ru"
+
+- name: Iptables enable nat
+  ansible.builtin.iptables:
+    table: nat
+    chain: POSTROUTING
+    out_interface: "{{ ext_ip_net_iface }}"
+    jump: MASQUERADE
+  become: yes
+  when: inventory_hostname == "ovpn-srv.techenergoanalit.ru"
+  notify: netfilter-persistent-save
+
+- name: Time zone setup
+  community.general.timezone: name="Europe/Moscow"
+  when: inventory_hostname in groups["vpnservers"]
+
+- name: Easy_rsa user create
+  ansible.builtin.user: name={{ easy_rsa_user }} shell=/bin/bash comment="non root user for create crt with easy-rsa"
+  when: inventory_hostname in groups["vpnservers"]
+
+
+- name: Gen ssh key
+  openssh_keypair: path="{{ easy_rsa_home_dir }}/.ssh/id_rsa"
+  become_user: "{{ easy_rsa_user }}"
+  when: 
+    - inventory_hostname == "ovpn-pki.techenergoanalit.ru" 
+  register: ssh_key
+
+- name: Get ssh key
+  ansible.builtin.command: cat {{ easy_rsa_home_dir }}/.ssh/id_rsa.pub
+  become_user: "{{ easy_rsa_user }}"
+  register: id_rsa_pub
+  when:
+    - inventory_hostname == "ovpn-pki.techenergoanalit.ru" 
+    - ssh_key.changed
+
+- name: Set ssh key facts
+  ansible.builtin.set_fact:
+    id_rsa_pub: "{{ id_rsa_pub.stdout }}"
+  when: 
+    - inventory_hostname == "ovpn-pki.techenergoanalit.ru" 
+    - ssh_key.changed
+
+- name: Set authorized key to allow auth ovpn-pki host
+  ansible.posix.authorized_key:
+    user: easy-rsa
+    state: present
+    key: "{{ hostvars['ovpn-pki.techenergoanalit.ru']['id_rsa_pub'] }}"
+  when: 
+    - inventory_hostname != "ovpn-pki.techenergoanalit.ru" 
+    - hostvars['ovpn-pki.techenergoanalit.ru']['id_rsa_pub'] is not mapping
+
+- name: Make easy-rsa work dir
+  ansible.builtin.file: path={{ easy_rsa_work_dir }} state=directory 
+  become_user: "{{ easy_rsa_user }}"
+  register: easy_rsa_dir
+
+- name: Allow rsync run with sudo
+  community.general.sudoers: user={{ easy_rsa_user }} runas=ALL commands=/usr/bin/rsync name=allow-rsync
+  when: 
+    - inventory_hostname != "ovpn-pki.techenergoanalit.ru" 
+    - easy_rsa_dir.changed
+
+- name: Get easy-rsa file list
+  ansible.builtin.command: ls {{ easy_rsa_install_dir }}
+  register: easy_rsa_files
+  when: 
+    - inventory_hostname in groups["vpnservers"]
+    - easy_rsa_dir.changed
+
+- name: Make symlinks from easy-rsa install to easy-rsa work dir
+  ansible.builtin.file: src={{ easy_rsa_install_dir }}/{{ item }} dest={{ easy_rsa_work_dir }}/{{ item }} state=link
+  loop: "{{ easy_rsa_files.stdout.split() }}" 
+  become_user: "{{ easy_rsa_user }}"
+  when: 
+    - inventory_hostname in groups["vpnservers"]
+    - easy_rsa_dir.changed
+
+- name: Init pki
+  ansible.builtin.command: 
+    argv:
+      - ./easyrsa
+      - init-pki
+  args:
+    chdir: "{{ easy_rsa_work_dir }}"
+  become_user: "{{ easy_rsa_user }}"
+  when: 
+    - inventory_hostname in groups["vpnservers"]
+    - easy_rsa_dir.changed
+
+- name: Init ca
+  ansible.builtin.command: 
+    argv:
+      - ./easyrsa
+      - --passin=pass:{{ pki_pass }}
+      - --passout=pass:{{ pki_pass }}
+      - build-ca
+  args:
+    chdir: "{{ easy_rsa_work_dir }}"
+  become_user: "{{ easy_rsa_user }}"
+  environment: 
+    EASYRSA_ALGO: ec
+    EASYRSA_DN: cn_only
+    EASYRSA_BATCH: 1
+  when: 
+    - inventory_hostname == "ovpn-pki.techenergoanalit.ru"
+    - easy_rsa_dir.changed
+
+- name: Prepare ovpn srv
+  block:
+    - name: Gen ovpn server key
+      ansible.builtin.command: 
+        argv:
+          - ./easyrsa
+          - gen-req
+          - server
+      args:
+        chdir: "{{ easy_rsa_work_dir }}"
+      become_user: "{{ easy_rsa_user }}"
+      environment: 
+        EASYRSA_DN: cn_only
+        EASYRSA_NO_PASS: 1
+        EASYRSA_BATCH: 1
+
+    - name: Copy server key to ovpn srv dir
+      ansible.builtin.copy: src={{ easy_rsa_work_dir }}/pki/private/server.key dest=/etc/openvpn/server owner=root group=root mode=0600 remote_src=true
+
+    - name: Gen ovpn server ta static key
+      ansible.builtin.command: 
+        argv:
+          - openvpn
+          - --genkey
+          - --secret
+          - ta.key
+      args:
+        chdir: /etc/openvpn/server
+
+    - name: Transmit server ovpn srv request key to ovpn pki host
+      ansible.builtin.synchronize: src={{ easy_rsa_work_dir }}/pki/reqs/server.req dest={{ easy_rsa_work_dir }}/pki/reqs/server.req mode=pull
+      delegate_to: "ovpn-pki.techenergoanalit.ru"
+      become_user: "{{ easy_rsa_user }}"
+  when: 
+    - inventory_hostname == "ovpn-srv.techenergoanalit.ru"
+    - easy_rsa_dir.changed
+
+
+- name: Make a cert for ovpn server key
+  ansible.builtin.command: 
+    argv:
+      - ./easyrsa
+      - --passin=pass:{{ pki_pass }}
+      - sign-req
+      - server
+      - server
+  args:
+    chdir: /home/easy-rsa/easy-rsa
+  environment: 
+    EASYRSA_BATCH: 1
+  become_user: "{{ easy_rsa_user }}"
+  when: 
+    - inventory_hostname == "ovpn-pki.techenergoanalit.ru"
+    - easy_rsa_dir.changed
+
+- name: Copy server.crt and ca.crt to ovpn server
+  ansible.builtin.synchronize: rsync_path="sudo /usr/bin/rsync" rsync_opts="-og --chown=root:root --chmod=a+r" src={{ item }} dest=/etc/openvpn/server/
+  loop: 
+    - "{{ easy_rsa_work_dir }}/pki/issued/server.crt"
+    - "{{ easy_rsa_work_dir }}/pki/ca.crt"
+  delegate_to: "ovpn-pki.techenergoanalit.ru"
+  become_user: "{{ easy_rsa_user }}"
+  when: 
+    - inventory_hostname == "ovpn-srv.techenergoanalit.ru"
+    - easy_rsa_dir.changed
+  notify: openvpn-restart
+
+- name: copy vpn_srv cfg
+  ansible.builtin.copy:
+    src: server.conf
+    dest: /etc/openvpn/
+  when: 
+    - inventory_hostname == "ovpn-srv.techenergoanalit.ru"
+    - easy_rsa_dir.changed
+  notify: openvpn-restart
+
+- name: Disallow rsync run with sudo
+  community.general.sudoers: user={{ easy_rsa_user }} runas=ALL commands=/usr/bin/rsync name=allow-rsync state=absent
+  when: 
+    - inventory_hostname != "ovpn-pki.techenergoanalit.ru" 
+    - easy_rsa_dir.changed

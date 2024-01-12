@@ -1,3 +1,6 @@
+# Exclude secret ansible file
+secret.passwd
+
 # Exclude all vim swap files
 *.swp
 

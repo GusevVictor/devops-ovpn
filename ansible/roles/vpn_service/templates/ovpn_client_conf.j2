@@ -1,0 +1,25 @@
+client
+cipher AES-128-CBC
+data-ciphers AES-128-CBC
+nobind
+dev tun
+remote-cert-tls server
+
+remote VPN.TECHENERGOANALIT.RU 1194 udp
+<key>
+{{ hostvars['ovpn-maintaince.techenergoanalit.ru']['client_key'] }}
+</key>
+<cert>
+{{ hostvars['ovpn-pki.techenergoanalit.ru']['client_crt'] }}
+</cert>
+<ca>
+{{ hostvars['ovpn-pki.techenergoanalit.ru']['ca_crt'] }}
+</cert>
+</ca>
+key-direction 1
+<tls-auth>
+{{ hostvars['ovpn-srv.techenergoanalit.ru']['ta_key'] }}
+</tls-auth>
+
+redirect-gateway def1
+

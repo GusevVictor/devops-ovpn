@@ -1,0 +1,124 @@
+---
+- name: Allow rsync run with sudo
+  community.general.sudoers: user={{ easy_rsa_user }} runas={{ easy_rsa_user }} commands=/usr/bin/rsync name=allow-rsync
+  when: 
+    - inventory_hostname == "ovpn-maintaince.techenergoanalit.ru"
+
+- name: Get list of existing client certs
+  ansible.builtin.shell: ls "{{ easy_rsa_work_dir }}/pki/reqs/" | awk -F"." '{print $1}'
+  register: clt_cert_list
+  become_user: "{{ easy_rsa_user }}"
+  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru" 
+    
+- name: Client name checking
+  ansible.builtin.fail:
+    msg: Please change client_name. The same name is exist.
+  any_errors_fatal: yes
+  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru" and client_name in clt_cert_list.stdout
+
+- name: Gen a client password
+  ansible.builtin.set_fact: cert_pass="{{ lookup('password', '/dev/null length=15 chars=ascii_letters') }}" 
+  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru"
+
+- name: Insert a dict entry
+  ansible.builtin.lineinfile:
+    line: "cert_name: {{ hostvars['ovpn-maintaince.techenergoanalit.ru']['client_name'] }} cert_pass: {{ hostvars['ovpn-maintaince.techenergoanalit.ru']['cert_pass'] }}"
+    path: "{{ easy_rsa_work_dir }}/client_data/user_data.txt"
+    create: yes
+  become_user: "{{ easy_rsa_user }}"
+  when: inventory_hostname == "ovpn-pki.techenergoanalit.ru"
+
+- name: Make client name cert request
+  ansible.builtin.command: 
+    argv:
+      - ./easyrsa
+      - --passout=pass:{{ hostvars['ovpn-maintaince.techenergoanalit.ru']['cert_pass'] }}
+      - gen-req
+      - "{{ client_name }}"
+  args:
+    chdir: "{{ easy_rsa_work_dir }}"
+  environment: 
+    EASYRSA_DN: cn_only
+    EASYRSA_BATCH: 1
+  become_user: "{{ easy_rsa_user }}"
+  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru"
+
+- name: Transfer client cert request to pki 
+  ansible.builtin.synchronize: 
+    mode=pull
+    src={{ easy_rsa_work_dir }}/pki/reqs/{{ client_name }}.req
+    dest={{ easy_rsa_work_dir }}/pki/reqs/
+  delegate_to: "ovpn-pki.techenergoanalit.ru"
+  become_user: "{{ easy_rsa_user }}"
+  when: 
+    - inventory_hostname == "ovpn-maintaince.techenergoanalit.ru"
+
+- name: Make a client cert
+  ansible.builtin.command: 
+    argv:
+      - ./easyrsa
+      - --passin=pass:{{ pki_pass }}
+      - sign-req
+      - client
+      - "{{ client_name }}"
+  args:
+    chdir: /home/easy-rsa/easy-rsa
+  become_user: easy-rsa
+  environment: 
+    EASYRSA_BATCH: 1
+  when: inventory_hostname == "ovpn-pki.techenergoanalit.ru" 
+
+- name: Get client crt 
+  ansible.builtin.shell: openssl x509 -in "{{ easy_rsa_work_dir }}/pki/issued/{{ client_name }}.crt" -text -certopt no_header,no_pubkey,no_subject,no_issuer,no_signame,no_version,no_serial,no_validity,no_extensions,no_sigdump,no_aux,no_extensions
+  when: inventory_hostname == "ovpn-pki.techenergoanalit.ru" 
+  register: client_crt
+
+- name: Get ca crt 
+  ansible.builtin.shell: openssl x509 -in "{{ easy_rsa_work_dir }}/pki/ca.crt" -text -certopt no_header,no_pubkey,no_subject,no_issuer,no_signame,no_version,no_serial,no_validity,no_extensions,no_sigdump,no_aux,no_extensions
+  when: inventory_hostname == "ovpn-pki.techenergoanalit.ru" 
+  register: ca_crt
+
+- name: Get client.key
+  ansible.builtin.command: cat {{ easy_rsa_work_dir }}/pki/private/{{ client_name }}.key
+  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru" 
+  register: client_key
+
+- name: Get ta.key
+  ansible.builtin.command: cat /etc/openvpn/server/ta.key
+  when: inventory_hostname == "ovpn-srv.techenergoanalit.ru" 
+  register: ta_key
+
+- name: Set facts for ovpn-maintaince.techenergoanalit.ru
+  ansible.builtin.set_fact:
+    client_key: "{{ client_key.stdout }}"
+  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru" 
+
+- name: Set facts for ovpn-srv.techenergoanalit.ru
+  ansible.builtin.set_fact:
+    ta_key: "{{ ta_key.stdout }}"
+  when: inventory_hostname == "ovpn-srv.techenergoanalit.ru" 
+
+- name: Set facts for ovpn-pki.techenergoanalit.ru
+  ansible.builtin.set_fact:
+    client_crt: "{{ client_crt.stdout }}"
+    ca_crt: "{{ ca_crt.stdout }}"
+  when: inventory_hostname == "ovpn-pki.techenergoanalit.ru" 
+
+- name: Create a directory client_data if it does not exist
+  ansible.builtin.file:
+    path: "{{ easy_rsa_work_dir }}/client_data"
+    state: directory
+  become_user: "{{ easy_rsa_user }}"
+  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru" 
+
+- name: Generate user cfg file
+  ansible.builtin.template:
+    src: ../templates/ovpn_client_conf.j2
+    dest: "{{ easy_rsa_work_dir }}/client_data/{{ client_name }}.ovpn"
+  become_user: "{{ easy_rsa_user }}"
+  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru" 
+
+- name: Disallow rsync run with sudo
+  community.general.sudoers: user={{ easy_rsa_user }} runas={{ easy_rsa_user }} commands=/usr/bin/rsync name=allow-rsync state=absent
+  when: 
+    - inventory_hostname == "ovpn-maintaince.techenergoanalit.ru"
