@@ -114,7 +114,10 @@
 - name: Generate user cfg file
   ansible.builtin.template:
     src: ../templates/ovpn_client_conf.j2
-    dest: "{{ easy_rsa_work_dir }}/client_data/{{ client_name }}.ovpn"
+    dest: "{{ item }}"
+  loop:
+    - "{{ easy_rsa_work_dir }}/client_data/{{ client_name }}.ovpn"
+    - "/tmp/{{ client_name }}.ovpn"
   become_user: "{{ easy_rsa_user }}"
   when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru" 
 

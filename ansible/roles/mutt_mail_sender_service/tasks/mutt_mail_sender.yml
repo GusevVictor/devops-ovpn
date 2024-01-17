@@ -1,0 +1,40 @@
+
+- name: Install mutt software
+  ansible.builtin.apt: name={{ package_list }}
+  vars:
+    package_list: ['mutt']
+  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru"
+
+- name: Mutt user create
+  ansible.builtin.user: name={{ mutt_user }} shell=/bin/bash comment="non root user for send mail"
+  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru"
+
+- name: Make mutt work dir
+  ansible.builtin.file: path=/home/{{ mutt_user }}/.mutt state=directory 
+  become_user: "{{ mutt_user }}"
+  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru"
+
+- name: Generate mutt cfg file
+  ansible.builtin.template:
+    src: ../templates/muttrc.j2
+    dest: "/home/{{ mutt_user }}/.mutt/muttrc"
+  become_user: "{{ mutt_user }}"
+  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru"
+
+- name: Generate email body msg
+  ansible.builtin.template:
+    src: ../templates/welcome.html
+    dest: /home/{{ mutt_user }}/.mutt
+  become_user: "{{ mutt_user }}"
+  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru"
+
+- name: Send email
+  ansible.builtin.shell: mutt -s 'Dear {{ client_name }} weclome to our corporate netwrok!' "{{ client_mail  }}" < ~/.mutt/welcome.html -a /tmp/{{ client_name }}.ovpn
+  become_user: "{{ mutt_user }}"
+  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru"
+
+- name: Remove tmp usercfg vpn file
+  ansible.builtin.file:
+    path: /tmp/{{ client_name }}.ovpn
+    state: absent
+  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru"
