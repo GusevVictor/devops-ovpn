@@ -7,3 +7,8 @@
     - vpn_service
     - mutt_mail_sender_service
 
+- name: Configure monitor_service
+  hosts: monservers
+  gather_facts: no
+  roles:
+    - monitor_service

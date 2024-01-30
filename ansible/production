@@ -1,9 +1,12 @@
-monitor.techenergoanalit.ru
 
 [vpnservers]
 ovpn-srv.techenergoanalit.ru
 ovpn-pki.techenergoanalit.ru
 ovpn-maintaince.techenergoanalit.ru
+
+[monservers]
+monitor.techenergoanalit.ru
+ovpn-srv.techenergoanalit.ru
 
 [ssh_jump]
 ovpn-srv.techenergoanalit.ru

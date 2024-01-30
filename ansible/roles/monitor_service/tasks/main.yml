@@ -1,0 +1,6 @@
+---
+# tasks file for monitor_service
+- name: Configuration prometheus server
+  ansible.builtin.include_tasks: file=prometheus_server_setup.yml
+  tags:
+    - always 
