@@ -1,0 +1,4 @@
+---
+# defaults file for backup_data
+ansible_become: true
+easy_rsa_user: easy-rsa

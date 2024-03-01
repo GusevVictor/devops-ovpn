@@ -6,9 +6,16 @@
   roles:
     - vpn_service
     - mutt_mail_sender_service
+    - haproxy_setup
 
 - name: Configure monitor_service
   hosts: monservers
   gather_facts: no
   roles:
     - monitor_service
+
+- name: Configure backup_service
+  hosts: bkservers
+  gather_facts: no
+  roles:
+    - backup_data

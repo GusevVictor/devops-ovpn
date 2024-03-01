@@ -8,7 +8,7 @@
 - name: Install openssl and acl pkgs
   ansible.builtin.apt: name={{ package_list }}
   vars:
-    package_list: ['openssl=3.0.2-0ubuntu1.12', 'acl']
+    package_list: ['openssl=3.0.*', 'acl']
   when: inventory_hostname in groups["vpnservers"]
 
 - name: Install easy-rsa

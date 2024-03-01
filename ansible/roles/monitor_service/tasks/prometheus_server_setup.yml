@@ -49,6 +49,8 @@
     - "/var/distr/prometheus/prometheus-2.49.1.linux-amd64/prometheus"
     - "/var/distr/prometheus/prometheus-2.49.1.linux-amd64/promtool"
   when: inventory_hostname == "monitor.techenergoanalit.ru"
+  notify:
+    - Restart prometheus
 
 - name: Copy prometheus files
   ansible.builtin.copy:
@@ -61,22 +63,30 @@
     - "/var/distr/prometheus/prometheus-2.49.1.linux-amd64/consoles"
     - "/var/distr/prometheus/prometheus-2.49.1.linux-amd64/console_libraries"
   when: inventory_hostname == "monitor.techenergoanalit.ru"
+  notify:
+    - Restart prometheus
 
 - name: Copy prometheus main cfg
   ansible.builtin.template:
     src: templates/prometheus.yml.j2
     dest: /etc/prometheus/prometheus.yml
   when: inventory_hostname == "monitor.techenergoanalit.ru"
+  notify:
+    - Restart prometheus
+
+- name: Copy prometheus web cfg
+  ansible.builtin.template:
+    src: templates/web-config.yml.j2
+    dest: /etc/prometheus/web-config.yml
+  when: inventory_hostname == "monitor.techenergoanalit.ru"
+  notify:
+    - Restart prometheus
 
 - name: Copy prometheus systemd service
   ansible.builtin.template:
     src: templates/prometheus.service.j2
     dest: /etc/systemd/system/prometheus.service
   when: inventory_hostname == "monitor.techenergoanalit.ru"
+  notify:
+    - Restart prometheus
 
-- name: Enable prometheus service
-  ansible.builtin.systemd_service:
-    state: started
-    daemon_reload: true
-    name: prometheus
-  when: inventory_hostname == "monitor.techenergoanalit.ru"

@@ -63,7 +63,7 @@
       - "{{ client_name }}"
   args:
     chdir: /home/easy-rsa/easy-rsa
-  become_user: easy-rsa
+  become_user: "{{ easy_rsa_user }}"
   environment: 
     EASYRSA_BATCH: 1
   when: inventory_hostname == "ovpn-pki.techenergoanalit.ru" 

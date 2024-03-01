@@ -1,0 +1,24 @@
+---
+# tasks file for backup_data
+- name: Install rclone
+  ansible.builtin.apt: deb="https://downloads.rclone.org/v1.65.2/rclone-v1.65.2-linux-amd64.deb"
+  when: inventory_hostname == "ovpn-pki.techenergoanalit.ru"
+
+- name: Copy rclone config file
+  ansible.builtin.copy:
+    src: rclone.conf
+    dest: ~/.config/rclone/
+  when: inventory_hostname == "ovpn-pki.techenergoanalit.ru"
+  become_user: "{{ easy_rsa_user }}"
+
+- name: Backup data
+  ansible.builtin.command:
+    argv:
+      - rclone 
+      - copy
+      - /home/easy-rsa/easy-rsa
+      - Yandex:devops-ovpn-sample
+  environment:
+    - RCLONE_CONFIG_PASS: "{{ RCLONE_CONFIG_PASS }}"
+  when: inventory_hostname == "ovpn-pki.techenergoanalit.ru"
+  become_user: "{{ easy_rsa_user }}"

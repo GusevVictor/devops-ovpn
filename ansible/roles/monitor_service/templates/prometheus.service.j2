@@ -1,5 +1,5 @@
 [Unit]
-Description=Prometheus
+Description=Prometheus main server
 Wants=network-online.target
 After=network-online.target
 
@@ -9,6 +9,7 @@ Group={{ prometheus_user }}
 Type=simple
 ExecStart=/usr/local/bin/prometheus \
     --config.file /etc/prometheus/prometheus.yml \
+    --web.config.file /etc/prometheus/web-config.yml \
     --storage.tsdb.path /var/lib/prometheus/ \
     --web.console.templates=/etc/prometheus/consoles \
     --web.console.libraries=/etc/prometheus/console_libraries

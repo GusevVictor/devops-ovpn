@@ -14,5 +14,8 @@ ovpn-pki.techenergoanalit.ru
 ovpn-maintaince.techenergoanalit.ru
 monitor.techenergoanalit.ru
 
+[bkservers]
+ovpn-pki.techenergoanalit.ru
+
 [ssh_jump:vars]
 ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q vgusev2007_gmail_com@vpn.techenergoanalit.ru"'

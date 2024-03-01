@@ -17,6 +17,19 @@ resource "google_compute_network" "vpc" {
 }
 
 # Create firewall rules
+resource "google_compute_firewall" "rule_0" {
+
+  project = var.gcp_project_name
+  name    = "allow-http-internal-network"
+  network = "ovpn-lan"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80"]
+  }
+  source_ranges = ["35.235.240.0/20", "10.10.0.0/24"]
+}
+
 resource "google_compute_firewall" "rule_1" {
   project = var.gcp_project_name
   name    = "allow-ssh"
@@ -48,6 +61,42 @@ resource "google_compute_firewall" "rule_3" {
   allow {
     protocol = "udp"
     ports    = ["1194"]
+  }
+  source_ranges = ["0.0.0.0/0"]
+}
+
+resource "google_compute_firewall" "rule_4" {
+  project = var.gcp_project_name
+  name    = "allow-http"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80"]
+  }
+  source_ranges = ["0.0.0.0/0"]
+}
+
+resource "google_compute_firewall" "rule_5" {
+  project = var.gcp_project_name
+  name    = "allow-9090"
+  network = "ovpn-lan"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["9090"]
+  }
+  source_ranges = ["0.0.0.0/0"]
+}
+
+resource "google_compute_firewall" "rule_6" {
+  project = var.gcp_project_name
+  name    = "allow-https"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["443"]
   }
   source_ranges = ["0.0.0.0/0"]
 }
