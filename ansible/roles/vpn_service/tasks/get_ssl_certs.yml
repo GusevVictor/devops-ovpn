@@ -1,0 +1,45 @@
+- name: Create deploy_script.sh
+  ansible.builtin.lineinfile:
+    path: /etc/letsencrypt/renewal-hooks/deploy/deploy_script.sh
+    line: "{{ item }}"
+    create: yes
+    mode: '0755'
+  loop:
+    - '#!/bin/bash'
+    - cp /etc/letsencrypt/live/{{ prometheus_external_dns_name }}/fullchain.pem /etc/prometheus/keys/{{ prometheus_external_dns_name }}-fullchain.pem
+    - cp /etc/letsencrypt/live/{{ prometheus_external_dns_name }}/privkey.pem /etc/prometheus/keys/{{ prometheus_external_dns_name }}-privkey.pem
+    - cp /etc/letsencrypt/live/{{ prometheus_alertmanager_external_dns_name }}/fullchain.pem /etc/prometheus/keys/{{ prometheus_alertmanager_external_dns_name }}-fullchain.pem
+    - cp /etc/letsencrypt/live/{{ prometheus_alertmanager_external_dns_name }}/privkey.pem /etc/prometheus/keys/{{ prometheus_alertmanager_external_dns_name }}-privkey.pem
+    - chmod o+r /etc/prometheus/keys/*.pem
+    - systemctl restart prometheus
+  when: inventory_hostname == "monitor1"
+
+- name: Get ssl cert
+  ansible.builtin.command:
+    argv:
+      - certbot
+      - certonly
+      - --standalone
+      - --register-unsafely-without-email
+      - --agree-tos
+      - -d {{ prometheus_external_dns_name }}
+  args:
+    creates: /etc/letsencrypt/live/{{ prometheus_external_dns_name }}/fullchain.pem
+  when: inventory_hostname == "monitor1"
+  notify: 
+    - Restart alertmanager
+
+- name: Get ssl cert
+  ansible.builtin.command:
+    argv:
+      - certbot
+      - certonly
+      - --standalone
+      - --register-unsafely-without-email
+      - --agree-tos
+      - -d {{ prometheus_alertmanager_external_dns_name }}
+  args:
+    creates: /etc/letsencrypt/live/{{ prometheus_alertmanager_external_dns_name }}/fullchain.pem
+  when: inventory_hostname == "monitor1"
+  notify: 
+    - Restart prometheus

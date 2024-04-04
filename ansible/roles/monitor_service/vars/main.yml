@@ -1,4 +1,0 @@
----
-# vars file for monitor_service
-prometheus_user: prometheus
-ansible_become: true

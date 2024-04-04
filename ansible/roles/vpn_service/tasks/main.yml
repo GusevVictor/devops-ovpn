@@ -1,13 +1,44 @@
 ---
 # tasks file for vpn_service
-- name: Configuration hosts
+- name: configure vpn
   ansible.builtin.include_tasks: file=vpn_service_setup.yml
   when: "vpn_setup is defined and vpn_setup|bool == true"
+  tags:
+    - always
+
+- name: configure haproxy
+  ansible.builtin.import_tasks: file=haproxy_setup.yml
+  tags:
+    - always 
+
+- name: Get ssl certs
+  ansible.builtin.import_tasks: file=get_ssl_certs.yml
   tags:
     - always 
 
 - name: Gen a user cert
-  ansible.builtin.include_tasks: file=vpn_service_gen_clt_cert.yml
+  ansible.builtin.import_tasks: file=vpn_service_gen_clt_cert.yml
   when: client_name is defined
   tags:
     - always 
+
+- name: Send a user cert by email
+  ansible.builtin.import_tasks: file=mutt_mail_sender.yml
+  when: "client_mail is defined"
+  tags:
+    - always 
+
+- name: configure prometheus
+  ansible.builtin.import_tasks: file=prometheus_server_setup.yml
+  tags:
+    - always 
+
+- name: configure prometheus alertmanager
+  ansible.builtin.import_tasks: file=prometheus_alertmanager_setup.yml 
+  tags:
+    - always 
+
+#- name: configure prometheus alertmanager
+#  ansible.builtin.import_tasks: file=prometheus_exporter_setup.yml
+#  tags:
+#    - always 

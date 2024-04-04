@@ -1,0 +1,11 @@
+# TLS and basic authentication configuration example.
+#
+# Additionally, a certificate and a key file are needed.
+tls_server_config:
+  cert_file: /etc/prometheus/keys/{{ prometheus_alertmanager_external_dns_name }}-fullchain.pem
+  key_file: /etc/prometheus/keys/{{ prometheus_alertmanager_external_dns_name }}-privkey.pem
+
+# Usernames and passwords required to connect to Prometheus.
+# Passwords are hashed with bcrypt: https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md#about-bcrypt
+basic_auth_users:
+  skillbox: $2a$12$4dgP9Db9.rY.GNzWLAuijuerYh7xzjaVhG/IdLpf.e9a0QAy6VsTy

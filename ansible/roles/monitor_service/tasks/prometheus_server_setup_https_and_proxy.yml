@@ -1,7 +1,0 @@
-- name: Copy haproxy prometheus file
-  ansible.builtin.copy:
-    src: prometheus_haproxy.cfg
-    dest: /etc/haproxy/conf.d/
-  when: inventory_hostname == "ovpn-srv.techenergoanalit.ru"
-  notify:
-    - Reload haproxy

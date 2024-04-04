@@ -1,0 +1,20 @@
+backend prometheus-http-LE
+	server server1 {{ hostvars[ 'monitor1' ].ansible_default_ipv4.address }}:80
+
+backend prometheus-https
+	option ssl-hello-chk
+	server server1 {{ hostvars[ 'monitor1' ].ansible_default_ipv4.address }}:9090
+
+backend prometheus_alertmanager-http-LE
+	server server1 {{ hostvars[ 'monitor1' ].ansible_default_ipv4.address }}:80
+
+backend prometheus_alertmanager-https
+	option ssl-hello-chk
+	server server1 {{ hostvars[ 'monitor1' ].ansible_default_ipv4.address }}:9093
+
+backend vpn-http-LE
+	server server1 127.0.0.1:8080
+
+backend vpn-https
+	option ssl-hello-chk
+	server server1 {{ hostvars[ 'vpn1' ].ansible_default_ipv4.address }}:9100

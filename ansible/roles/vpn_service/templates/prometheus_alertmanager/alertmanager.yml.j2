@@ -1,0 +1,15 @@
+route:
+  group_by: ['InstanceDown']
+  group_wait: 30s
+  group_interval: 1m
+  repeat_interval: 2m
+  receiver: 'mail'
+
+receivers:
+  - name: 'mail'
+    email_configs:
+      - smarthost: '{{ email_config_smarthost }}'
+        auth_username: {{ email_config_auth_username }}
+        auth_password: {{ email_config_auth_password }}
+        from: {{ email_config_from }}
+        to: {{ email_config_to }}

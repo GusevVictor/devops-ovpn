@@ -1,0 +1,26 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+  - scheme: https
+    basic_auth:
+      username: {{ PROMETHUS_EXPORTER_OVPN_SRV_USERNAME }}
+      password: {{ PROMETHUS_EXPORTER_OVPN_SRV_PASSWORD }}
+    static_configs:
+      - targets:
+          - {{ alertmanager_target_host }}:{{ alertmanager_target_port }}
+
+rule_files:
+    - "first_rules.yml"
+
+scrape_configs:
+  - job_name: "ovpn-srv"
+    scheme: https
+    basic_auth:
+      username: {{ PROMETHUS_EXPORTER_OVPN_SRV_USERNAME }}
+      password: {{ PROMETHUS_EXPORTER_OVPN_SRV_PASSWORD }}
+    static_configs:
+      - targets:
+          - {{ node_exporter_target_host }}:{{ node_exporter_target_port }}

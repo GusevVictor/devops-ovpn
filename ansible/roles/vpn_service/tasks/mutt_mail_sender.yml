@@ -1,0 +1,25 @@
+- name: mutt_mail_sender
+  block:
+    - name: Make mutt work dir
+      ansible.builtin.file: path=/home/{{ mutt_user }}/.mutt state=directory 
+    
+    - name: Generate mutt cfg file
+      ansible.builtin.template:
+        src: mutt/muttrc.j2
+        dest: "/home/{{ mutt_user }}/.mutt/muttrc"
+    
+    - name: Generate email body msg
+      ansible.builtin.template:
+        src: mutt/welcome.html.j2
+        dest: /home/{{ mutt_user }}/.mutt/welcome.html
+    
+    - name: Send email
+      ansible.builtin.shell: mutt -s 'Dear {{ client_name }} weclome to our corporate netwrok!' "{{ client_mail  }}" < ~/.mutt/welcome.html -a /tmp/{{ client_name }}.ovpn
+    
+    - name: Remove tmp usercfg vpn file
+      ansible.builtin.file:
+        path: /tmp/{{ client_name }}.ovpn
+        state: absent
+      become_user: root
+  become_user: "{{ mutt_user }}"
+  when: inventory_hostname in lookup('inventory_hostnames', 'maintaince')

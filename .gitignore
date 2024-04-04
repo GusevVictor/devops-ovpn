@@ -1,3 +1,6 @@
+# Exclude ssh keys
+id_*
+
 # Exclude secret ansible file
 secret.passwd
 

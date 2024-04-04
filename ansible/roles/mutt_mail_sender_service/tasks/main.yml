@@ -1,8 +1,0 @@
----
-# tasks file for mutt_mail_sender_service
-
-- name: Configuration hosts
-  ansible.builtin.include_tasks: file=mutt_mail_sender.yml
-  when: "client_mail is defined"
-  tags:
-    - always 

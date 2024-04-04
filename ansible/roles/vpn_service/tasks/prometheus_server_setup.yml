@@ -1,0 +1,61 @@
+- name: Download prometheus
+  ansible.builtin.get_url:
+    url: https://github.com/prometheus/prometheus/releases/download/v2.49.1/prometheus-2.49.1.linux-amd64.tar.gz
+    dest: /var/distr/prometheus
+  when: inventory_hostname == "monitor1"
+
+- name: Extract prometheus
+  ansible.builtin.unarchive:
+    remote_src: true
+    src: /var/distr/prometheus/prometheus-2.49.1.linux-amd64.tar.gz
+    dest: /var/distr/prometheus
+  when: inventory_hostname == "monitor1"
+
+- name: Copy prometheus bin files
+  ansible.builtin.copy:
+    remote_src: true
+    src: "{{ item }}"
+    dest: /usr/local/bin
+    mode: u=rw,g=r,o=rx
+  loop:
+    - "/var/distr/prometheus/prometheus-2.49.1.linux-amd64/prometheus"
+    - "/var/distr/prometheus/prometheus-2.49.1.linux-amd64/promtool"
+  when: inventory_hostname == "monitor1"
+  notify:
+    - Restart prometheus
+
+- name: Copy prometheus files
+  ansible.builtin.copy:
+    remote_src: true
+    src: "{{ item }}"
+    dest: /etc/prometheus/
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_user }}"
+  loop:
+    - "/var/distr/prometheus/prometheus-2.49.1.linux-amd64/consoles"
+    - "/var/distr/prometheus/prometheus-2.49.1.linux-amd64/console_libraries"
+  when: inventory_hostname == "monitor1"
+  notify:
+    - Restart prometheus
+
+- name: Copy prometheus template files
+  ansible.builtin.template:
+    src: "{{ item.src }}" 
+    dest: "{{ item.dest }}"
+  when: inventory_hostname == "monitor1"
+  notify:
+    - Restart prometheus
+  loop:
+    - { src: 'prometheus/prometheus.service.j2', dest: '/etc/systemd/system/prometheus.service' }
+    - { src: 'prometheus/web-config.yml.j2', dest: '/etc/prometheus/web-config.yml' }
+    - { src: 'prometheus/prometheus.yml.j2', dest: '/etc/prometheus/prometheus.yml' }
+
+- name: Copy prometheus files
+  ansible.builtin.copy:
+    src: "{{ item.src }}" 
+    dest: "{{ item.dest }}"
+  when: inventory_hostname == "monitor1"
+  notify:
+    - Restart prometheus
+  loop:
+    - { src: 'prometheus/first_rules.yml', dest: '/etc/prometheus/' }

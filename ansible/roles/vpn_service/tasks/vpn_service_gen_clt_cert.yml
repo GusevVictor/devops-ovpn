@@ -2,37 +2,37 @@
 - name: Allow rsync run with sudo
   community.general.sudoers: user={{ easy_rsa_user }} runas={{ easy_rsa_user }} commands=/usr/bin/rsync name=allow-rsync
   when: 
-    - inventory_hostname == "ovpn-maintaince.techenergoanalit.ru"
+    - inventory_hostname == "maintaince1"
 
 - name: Get list of existing client certs
   ansible.builtin.shell: ls "{{ easy_rsa_work_dir }}/pki/reqs/" | awk -F"." '{print $1}'
   register: clt_cert_list
   become_user: "{{ easy_rsa_user }}"
-  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru" 
+  when: inventory_hostname == "maintaince1" 
     
 - name: Client name checking
   ansible.builtin.fail:
-    msg: Please change client_name. The same name is exist.
+    msg: Please change client_name. The same name exist.
   any_errors_fatal: yes
-  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru" and client_name in clt_cert_list.stdout
+  when: inventory_hostname == "maintaince1" and client_name in clt_cert_list.stdout
 
 - name: Gen a client password
   ansible.builtin.set_fact: cert_pass="{{ lookup('password', '/dev/null length=15 chars=ascii_letters') }}" 
-  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru"
+  when: inventory_hostname == "maintaince1"
 
 - name: Insert a dict entry
   ansible.builtin.lineinfile:
-    line: "cert_name: {{ hostvars['ovpn-maintaince.techenergoanalit.ru']['client_name'] }} cert_pass: {{ hostvars['ovpn-maintaince.techenergoanalit.ru']['cert_pass'] }}"
+    line: "cert_name: {{ hostvars['maintaince1']['client_name'] }} cert_pass: {{ hostvars['maintaince1']['cert_pass'] }}"
     path: "{{ easy_rsa_work_dir }}/client_data/user_data.txt"
     create: yes
   become_user: "{{ easy_rsa_user }}"
-  when: inventory_hostname == "ovpn-pki.techenergoanalit.ru"
+  when: inventory_hostname == "pki1"
 
 - name: Make client name cert request
   ansible.builtin.command: 
     argv:
       - ./easyrsa
-      - --passout=pass:{{ hostvars['ovpn-maintaince.techenergoanalit.ru']['cert_pass'] }}
+      - --passout=pass:{{ hostvars['maintaince1']['cert_pass'] }}
       - gen-req
       - "{{ client_name }}"
   args:
@@ -41,17 +41,18 @@
     EASYRSA_DN: cn_only
     EASYRSA_BATCH: 1
   become_user: "{{ easy_rsa_user }}"
-  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru"
+  when: inventory_hostname == "maintaince1"
 
 - name: Transfer client cert request to pki 
   ansible.builtin.synchronize: 
     mode=pull
+    set_remote_user=false
     src={{ easy_rsa_work_dir }}/pki/reqs/{{ client_name }}.req
     dest={{ easy_rsa_work_dir }}/pki/reqs/
-  delegate_to: "ovpn-pki.techenergoanalit.ru"
+  delegate_to: "pki1"
   become_user: "{{ easy_rsa_user }}"
   when: 
-    - inventory_hostname == "ovpn-maintaince.techenergoanalit.ru"
+    - inventory_hostname == "maintaince1"
 
 - name: Make a client cert
   ansible.builtin.command: 
@@ -66,62 +67,62 @@
   become_user: "{{ easy_rsa_user }}"
   environment: 
     EASYRSA_BATCH: 1
-  when: inventory_hostname == "ovpn-pki.techenergoanalit.ru" 
+  when: inventory_hostname == "pki1" 
 
 - name: Get client crt 
   ansible.builtin.shell: openssl x509 -in "{{ easy_rsa_work_dir }}/pki/issued/{{ client_name }}.crt" -text -certopt no_header,no_pubkey,no_subject,no_issuer,no_signame,no_version,no_serial,no_validity,no_extensions,no_sigdump,no_aux,no_extensions
-  when: inventory_hostname == "ovpn-pki.techenergoanalit.ru" 
+  when: inventory_hostname == "pki1" 
   register: client_crt
 
 - name: Get ca crt 
   ansible.builtin.shell: openssl x509 -in "{{ easy_rsa_work_dir }}/pki/ca.crt" -text -certopt no_header,no_pubkey,no_subject,no_issuer,no_signame,no_version,no_serial,no_validity,no_extensions,no_sigdump,no_aux,no_extensions
-  when: inventory_hostname == "ovpn-pki.techenergoanalit.ru" 
+  when: inventory_hostname == "pki1" 
   register: ca_crt
 
 - name: Get client.key
   ansible.builtin.command: cat {{ easy_rsa_work_dir }}/pki/private/{{ client_name }}.key
-  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru" 
+  when: inventory_hostname == "maintaince1" 
   register: client_key
 
 - name: Get ta.key
   ansible.builtin.command: cat /etc/openvpn/server/ta.key
-  when: inventory_hostname == "ovpn-srv.techenergoanalit.ru" 
+  when: inventory_hostname == "vpn1" 
   register: ta_key
 
-- name: Set facts for ovpn-maintaince.techenergoanalit.ru
+- name: Set facts for maintaince1
   ansible.builtin.set_fact:
     client_key: "{{ client_key.stdout }}"
-  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru" 
+  when: inventory_hostname == "maintaince1" 
 
-- name: Set facts for ovpn-srv.techenergoanalit.ru
+- name: Set facts for vpn1
   ansible.builtin.set_fact:
     ta_key: "{{ ta_key.stdout }}"
-  when: inventory_hostname == "ovpn-srv.techenergoanalit.ru" 
+  when: inventory_hostname == "vpn1" 
 
-- name: Set facts for ovpn-pki.techenergoanalit.ru
+- name: Set facts for pki1
   ansible.builtin.set_fact:
     client_crt: "{{ client_crt.stdout }}"
     ca_crt: "{{ ca_crt.stdout }}"
-  when: inventory_hostname == "ovpn-pki.techenergoanalit.ru" 
+  when: inventory_hostname == "pki1" 
 
 - name: Create a directory client_data if it does not exist
   ansible.builtin.file:
     path: "{{ easy_rsa_work_dir }}/client_data"
     state: directory
   become_user: "{{ easy_rsa_user }}"
-  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru" 
+  when: inventory_hostname == "maintaince1" 
 
 - name: Generate user cfg file
   ansible.builtin.template:
-    src: ../templates/ovpn_client_conf.j2
+    src: openvpn/ovpn_client_conf.j2
     dest: "{{ item }}"
   loop:
     - "{{ easy_rsa_work_dir }}/client_data/{{ client_name }}.ovpn"
     - "/tmp/{{ client_name }}.ovpn"
   become_user: "{{ easy_rsa_user }}"
-  when: inventory_hostname == "ovpn-maintaince.techenergoanalit.ru" 
+  when: inventory_hostname == "maintaince1" 
 
 - name: Disallow rsync run with sudo
   community.general.sudoers: user={{ easy_rsa_user }} runas={{ easy_rsa_user }} commands=/usr/bin/rsync name=allow-rsync state=absent
   when: 
-    - inventory_hostname == "ovpn-maintaince.techenergoanalit.ru"
+    - inventory_hostname == "maintaince1"

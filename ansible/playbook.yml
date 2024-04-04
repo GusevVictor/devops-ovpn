@@ -1,21 +1,110 @@
 ---
 # tasks file for vpn_service
+
 - name: Configure vpn_service
-  hosts: vpnservers
-  gather_facts: no
+  hosts: all
   roles:
     - vpn_service
-    - mutt_mail_sender_service
-    - haproxy_setup
 
-- name: Configure monitor_service
-  hosts: monservers
-  gather_facts: no
-  roles:
-    - monitor_service
+  pre_tasks:
+    - name: Time zone setup
+      community.general.timezone: name="Europe/Moscow"
 
-- name: Configure backup_service
-  hosts: bkservers
-  gather_facts: no
-  roles:
-    - backup_data
+    - name: Add haproxy stable repository from PPA and install its signing key on Ubuntu target
+      ansible.builtin.apt_repository:
+        repo: ppa:vbernat/haproxy-2.9
+      when: inventory_hostname in lookup('inventory_hostnames', 'vpn')
+
+    - name : install dependencies before starting task 1
+      ansible.builtin.apt:
+         name: 
+           - mc
+           - acl
+           - snapd
+
+    - name: Install "certbot" 
+      community.general.snap:
+        name: certbot
+        classic: true
+
+    - name : install dependencies before starting task 2
+      ansible.builtin.apt:
+         name: 
+           - openssl=3.0.*
+      when: inventory_hostname in lookup('inventory_hostnames', 'vpn:pki:maintaince')
+
+    - name : install dependencies before starting task 3
+      ansible.builtin.apt:
+         name: 
+           - iptables-persistent
+           - openvpn
+           - haproxy=2.9.*
+      when: inventory_hostname in lookup('inventory_hostnames', 'vpn')
+
+    - name: Install easy-rsa
+      ansible.builtin.apt: deb="https://launchpad.net/ubuntu/+archive/primary/+files/easy-rsa_3.1.7-1_all.deb"
+      when: inventory_hostname in lookup('inventory_hostnames', 'vpn:pki:maintaince')
+    
+    - name: Install mutt software
+      ansible.builtin.apt: name=mutt
+      when: inventory_hostname in lookup('inventory_hostnames', 'maintaince')
+    
+    - name: Mutt user create
+      ansible.builtin.user: name={{ mutt_user }} shell=/bin/bash comment="non root user for send mail"
+      when: inventory_hostname in lookup('inventory_hostnames', 'maintaince')
+
+    - name: Easy_rsa user create
+      ansible.builtin.user: name={{ easy_rsa_user }} shell=/bin/bash comment="non root user for create crt with easy-rsa"
+      when: inventory_hostname in lookup('inventory_hostnames', 'vpn:pki:maintaince')
+
+    - name: Prometheus user create
+      ansible.builtin.user: name={{ prometheus_user }} shell=/usr/bin/false create_home=false comment="non root user for prometheus"
+
+    - name: Make easy-rsa work dir
+      ansible.builtin.file: path={{ easy_rsa_work_dir }} state=directory 
+      become_user: "{{ easy_rsa_user }}"
+      register: easy_rsa_dir
+      when: inventory_hostname in lookup('inventory_hostnames', 'vpn:pki:maintaince')
+
+    - name: Create a symbolic link for certbot bin
+      ansible.builtin.file:
+        src: /snap/bin/certbot
+        dest: /usr/bin/certbot
+        state: link
+
+    - name: Create a keys directory if it does not exist
+      ansible.builtin.file:
+        path: /etc/prometheus/keys/
+        state: directory
+        mode: '0755'
+
+    - name: Create directories for prometheus if they dont exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+      loop:
+        - "/etc/prometheus" 
+        - "/var/lib/prometheus"
+        - "/var/lib/prometheus_alertmanager"
+        - "/var/distr/prometheus"
+      when: inventory_hostname == "monitor1"
+
+    - name: Change ownership of a directory for prometheus
+      ansible.builtin.file:
+        path: /var/lib/prometheus
+        state: directory
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_user }}"
+      when: inventory_hostname == "monitor1"
+
+  post_tasks:
+    - name: Change etc/hosts file
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: "{{ item }}"
+      loop:
+        - '#'
+        - '# We need it because prometheus will connect to our host inside our LAN cloud network'
+        - "{{ hostvars['vpn1'].ansible_host }} {{ node_exporter_target_host }}"
+        - "{{ hostvars[ 'monitor1' ].ansible_host }} {{ alertmanager_target_host }}"
+      when: inventory_hostname == "monitor1"

@@ -1,0 +1,23 @@
+frontend http
+	bind *:80
+
+	acl lets_encrypt path_beg /.well-known/acme-challenge/
+	acl goto-prometheus-http hdr(host) -i {{ prometheus_external_dns_name }}
+	acl goto-prometheus_alertmanager-http hdr(host) -i {{ prometheus_alertmanager_external_dns_name }}
+	acl goto-vpn-http hdr(host) -i {{ prometheus_vpn_node_explorer_external_dns_name }} 
+
+	use_backend prometheus-http-LE if lets_encrypt goto-prometheus-http
+	use_backend prometheus_alertmanager-http-LE if lets_encrypt goto-prometheus_alertmanager-http
+	use_backend vpn-http-LE if lets_encrypt goto-vpn-http
+
+frontend https
+	bind *:443
+
+	option tcplog
+
+	tcp-request inspect-delay 5s
+	tcp-request content accept if { req_ssl_hello_type 1 }
+
+	use_backend prometheus-https if { req.ssl_sni -i {{ prometheus_external_dns_name }} }
+	use_backend prometheus_alertmanager-https if { req.ssl_sni -i {{ prometheus_alertmanager_external_dns_name }} }
+	use_backend vpn-https if { req.ssl_sni -i {{ prometheus_vpn_node_explorer_external_dns_name }} }

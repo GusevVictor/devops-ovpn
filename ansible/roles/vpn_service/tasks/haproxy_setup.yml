@@ -1,0 +1,30 @@
+---
+- name: Create a haproxy cfg directory if it does not exist
+  ansible.builtin.file:
+    path: /etc/haproxy/conf.d
+    state: directory
+  when: inventory_hostname == "vpn1"
+
+- name: Copy haproxy config files
+  ansible.builtin.template:
+    src: "{{ item.scr_dir }}"
+    dest: "{{ item.dest_dir }}"
+  when: inventory_hostname == "vpn1"
+  loop:
+    - { scr_dir: 'haproxy/haproxy.j2', dest_dir: '/etc/default/haproxy' }
+    - { scr_dir: 'haproxy/haproxy.cfg.j2', dest_dir: '/etc/haproxy/haproxy.cfg' }
+  notify:
+    - Restart haproxy
+
+- name: Copy haproxy conf.d files
+  ansible.builtin.template:
+    src: "{{ item }}"
+    dest: "/etc/haproxy/conf.d/{{ item.split('.') | first | basename }}.cfg"
+  when: inventory_hostname == "vpn1"
+  with_fileglob:
+    - "templates/haproxy/conf_d/*.j2"
+  notify:
+    - Reload haproxy
+
+- name: Force all notified handlers to run at this point, not waiting for normal sync points
+  ansible.builtin.meta: flush_handlers

@@ -89,6 +89,30 @@ resource "google_compute_firewall" "rule_5" {
   source_ranges = ["0.0.0.0/0"]
 }
 
+resource "google_compute_firewall" "rule_5_1" {
+  project = var.gcp_project_name
+  name    = "allow-9100"
+  network = "ovpn-lan"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["9100"]
+  }
+  source_ranges = ["0.0.0.0/0"]
+}
+
+resource "google_compute_firewall" "rule_5_2" {
+  project = var.gcp_project_name
+  name    = "allow-9093"
+  network = "ovpn-lan"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["9093"]
+  }
+  source_ranges = ["0.0.0.0/0"]
+}
+
 resource "google_compute_firewall" "rule_6" {
   project = var.gcp_project_name
   name    = "allow-https"

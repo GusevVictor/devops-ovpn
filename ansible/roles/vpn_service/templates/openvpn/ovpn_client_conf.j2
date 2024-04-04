@@ -1,0 +1,25 @@
+client
+cipher AES-128-CBC
+data-ciphers AES-128-CBC
+nobind
+dev tun
+remote-cert-tls server
+
+remote {{ vpn_server_dns_name }} {{ vpn_server_port }} {{ vpn_server_proto }}
+<key>
+{{ hostvars['maintaince1']['client_key'] }}
+</key>
+<cert>
+{{ hostvars['pki1']['client_crt'] }}
+</cert>
+<ca>
+{{ hostvars['pki1']['ca_crt'] }}
+</cert>
+</ca>
+key-direction 1
+<tls-auth>
+{{ hostvars['vpn1']['ta_key'] }}
+</tls-auth>
+
+redirect-gateway def1
+

@@ -1,0 +1,45 @@
+- name: Change ownership of a directory for prometheus
+  ansible.builtin.file:
+    path: /var/lib/prometheus_alertmanager
+    state: directory
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_user }}"
+  when: inventory_hostname == "monitor1"
+
+- name: Download alertmanager
+  ansible.builtin.get_url:
+    url: https://github.com/prometheus/alertmanager/releases/download/v0.27.0/alertmanager-0.27.0.linux-amd64.tar.gz
+    dest: /var/distr/prometheus
+  when: inventory_hostname == "monitor1"
+
+- name: Extract alertmanager
+  ansible.builtin.unarchive:
+    remote_src: true
+    src: /var/distr/prometheus/alertmanager-0.27.0.linux-amd64.tar.gz
+    dest: /var/distr/prometheus
+  when: inventory_hostname == "monitor1"
+
+- name: Copy alertmanager bin files
+  ansible.builtin.copy:
+    remote_src: true
+    src: "{{ item }}"
+    dest: /usr/local/bin
+    mode: u=rw,g=r,o=rx
+  loop:
+    - "/var/distr/prometheus/alertmanager-0.27.0.linux-amd64/alertmanager"
+    - "/var/distr/prometheus/alertmanager-0.27.0.linux-amd64/amtool"
+  when: inventory_hostname == "monitor1"
+  notify:
+    - Restart alertmanager
+
+- name: Copy prometheus_alertmanager template files
+  ansible.builtin.template:
+    src: "{{ item.src }}" 
+    dest: "{{ item.dest }}"
+  when: inventory_hostname == "monitor1"
+  notify:
+    - Restart alertmanager
+  loop:
+    - { src: 'prometheus_alertmanager/alertmanager.yml.j2', dest: '/etc/prometheus/alertmanager.yml' }
+    - { src: 'prometheus_alertmanager/alertmanager_web-config.yml.j2', dest: '/etc/prometheus/alertmanager_web-config.yml' }
+    - { src: 'prometheus_alertmanager/alertmanager.service.j2', dest: '/etc/systemd/system/alertmanager.service' }

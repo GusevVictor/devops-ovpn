@@ -1,0 +1,16 @@
+vpn1 ansible_host=10.10.0.2 
+pki1 ansible_host=10.10.0.3
+maintaince1 ansible_host=10.10.0.4
+monitor1 ansible_host=10.10.0.6
+
+[vpn]
+vpn1
+
+[pki]
+pki1
+
+[maintaince]
+maintaince1
+
+[monitor]
+monitor1

@@ -1,7 +1,2 @@
 ---
 # defaults file for vpn_service
-ansible_become: true
-easy_rsa_user: easy-rsa
-easy_rsa_install_dir: /usr/share/easy-rsa
-easy_rsa_work_dir: /home/easy-rsa/easy-rsa
-easy_rsa_home_dir: /home/easy-rsa

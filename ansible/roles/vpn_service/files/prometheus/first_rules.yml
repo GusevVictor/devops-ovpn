@@ -1,0 +1,20 @@
+groups:
+- name: example.rules
+  rules:
+  - alert: InstanceDown
+    expr: up == 0
+    for: 1m
+    labels:
+      severity: page
+    annotations:
+      summary: "Instance {{ $labels.instance }} down"
+      description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 1 min."
+
+  - alert: Vpn service is down
+    expr: node_systemd_unit_state{name="openvpn@server.service",state="inactive",type="notify"} == 1
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: service is down on host {{ $labels.instance }}
+      description: "Service is down"
