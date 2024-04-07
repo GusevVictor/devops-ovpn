@@ -1,0 +1,18 @@
+- name: Copy rclone config file
+  ansible.builtin.copy:
+    src: rclone/rclone.conf
+    dest: ~/.config/rclone/
+  when: inventory_hostname == "pki1"
+  become_user: "{{ easy_rsa_user }}"
+
+- name: Backup data1
+  ansible.builtin.command:
+    argv:
+      - rclone 
+      - copy
+      - /home/easy-rsa/easy-rsa
+      - Yandex:devops-ovpn-sample
+  environment:
+    - RCLONE_CONFIG_PASS: "{{ RCLONE_CONFIG_PASS }}"
+  when: inventory_hostname == "pki1"
+  become_user: "{{ easy_rsa_user }}"

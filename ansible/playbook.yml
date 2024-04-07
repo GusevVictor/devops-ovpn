@@ -27,6 +27,9 @@
         name: certbot
         classic: true
 
+    - name: Install rclone
+      ansible.builtin.apt: deb="https://downloads.rclone.org/v1.65.2/rclone-v1.65.2-linux-amd64.deb"
+
     - name : install dependencies before starting task 2
       ansible.builtin.apt:
          name: 
