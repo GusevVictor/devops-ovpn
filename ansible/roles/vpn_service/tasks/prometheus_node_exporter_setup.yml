@@ -1,0 +1,40 @@
+- name: Download node_exporter
+  ansible.builtin.get_url:
+    url: https://github.com/prometheus/node_exporter/releases/download/v1.7.0/node_exporter-1.7.0.linux-amd64.tar.gz
+    dest: /var/distr/prometheus
+  when: inventory_hostname == "vpn1"
+
+- name: Extract node_exporter
+  ansible.builtin.unarchive:
+    remote_src: true
+    src: /var/distr/prometheus/node_exporter-1.7.0.linux-amd64.tar.gz
+    dest: /var/distr/prometheus
+  when: inventory_hostname == "vpn1"
+
+- name: Copy prometheus bin files
+  ansible.builtin.copy:
+    remote_src: true
+    src: "{{ item }}"
+    dest: /usr/local/bin
+    mode: u=rw,g=r,o=rx
+  loop:
+    - "/var/distr/prometheus/node_exporter-1.7.0.linux-amd64/node_exporter"
+  when: inventory_hostname == "vpn1"
+  notify:
+    - Restart node_exporter
+
+- name: Copy prometheus web cfg
+  ansible.builtin.template:
+    src: prometheus_node_exporter/web_vpn.yml.j2
+    dest: /etc/prometheus/web.yml
+  when: inventory_hostname == "vpn1"
+  notify:
+    - Restart node_exporter
+
+- name: Copy node_exporter systemd service
+  ansible.builtin.template:
+    src: prometheus_node_exporter/node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+  when: inventory_hostname == "vpn1"
+  notify:
+    - Restart node_exporter

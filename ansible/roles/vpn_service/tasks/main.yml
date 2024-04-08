@@ -24,6 +24,9 @@
 - name: configure prometheus alertmanager
   ansible.builtin.import_tasks: file=prometheus_alertmanager_setup.yml 
 
+- name: configure prometheus node_exporter
+  ansible.builtin.import_tasks: file=prometheus_node_exporter_setup.yml 
+
 - name: configure rclone backup software and make a backup
   ansible.builtin.import_tasks: file=backup_setup.yml 
   when: "client_mail is defined"
